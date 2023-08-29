@@ -3,9 +3,11 @@ import cmbbest as best
 from cobaya.theory import Theory
 from cobaya.likelihood import Likelihood
 
+MODE_P_MAX = 30
+
 class BispectrumLikelihood(Likelihood):
 
-    def initialize(self, mode_p_max=30):
+    def initialize(self):
         # Initialise arrays and parameters necessary for likelihood computation
         pass
 
@@ -25,13 +27,13 @@ class BispectrumLikelihood(Likelihood):
 
         return dlnL
 
-    def get_info(unit_fnl=False):
+    def get_info(fnl_type="unit"):
         # Get base info for cobaya runs
 
         info = {}
-        info["likelihood"] = {"bestlike": BispectrumLikelihood}
+        info["likelihood"] = {"cmbfeat.bispectrum.BispectrumLikelihood": None}
 
-        if unit_fnl:
+        if fnl_type == "unit":
             # fnl is fixed to 1
             info["params"] = {
                         "fnl": {
@@ -39,8 +41,8 @@ class BispectrumLikelihood(Likelihood):
                             "latex": r"f_\mathrm{NL}"
                         }
                     }
-        else:
-            # Sample fnl directly
+        elif fnl_type == "sampled":
+            # Directly sample fnl
             info["params"] = {
                         "fnl": {
                             "prior": {
@@ -50,13 +52,19 @@ class BispectrumLikelihood(Likelihood):
                             "latex": r"f_\mathrm{NL}"
                         }
             }
+        elif fnl_type == "derived":
+            # Indirectly sample fnl, e.g. through fnl_SNR
+            info["params"] = {
+                        "fnl": {
+                            "latex": r"f_\mathrm{NL}"
+                        }
+            }
         
         return info
 
 
-
 class BispectrumDecomp(Theory):
-    """ A class for basis decomposition of a given cmbbest.Model instance """
+    """ A class for getting bispectrum constraints on a given cmbbest.Model instance """
 
     def initialize(self, mode_p_max=30):
         """called from __init__ to initialize"""
@@ -96,7 +104,7 @@ class BispectrumDecomp(Theory):
         # Get base info for cobaya runs
 
         info = {}
-        info["theory"] = {"decomp": BispectrumDecomp}
+        info["theory"] = {"cmbfeat.bispectrum.BispectrumDecomp": None}
         info["params"] = {
                     "fnl_MLE": {
                         "latex": r"\widehat{f_\mathrm{NL}}"
@@ -124,6 +132,156 @@ class BispectrumDecomp(Theory):
         
         return info
 
+
+class BispectrumLikelihoodFromAlpha(Likelihood):
+
+    def initialize(self, mode_p_max=MODE_P_MAX):
+        basis = best.Basis(mode_p_max=mode_p_max)
+        f_sky = basis.parameter_f_sky
+        self._beta = (1/6) * (basis.beta[0,:] - f_sky * basis.beta_LISW)
+        self._gamma = (f_sky/6) * basis.gamma
+
+    def get_requirements(self):
+        return ["fnl", "cmbbest_alpha"]
+
+    def logp(self, _derived=None, **params_values):
+        fnl = self.provider.get_param("fnl")
+        alpha = self.provider.get_result("cmbbest_alpha")
+
+        dlnL = fnl * np.dot(self._beta, alpha) - (1/2) * (fnl ** 2) * np.dot(alpha, np.matmul(self._gamma, alpha))
+
+        return dlnL
+
+    def get_info(fnl_type="unit"):
+        # Get base info for cobaya runs
+
+        info = {}
+        info["likelihood"] = {"cmbfeat.bispectrum.BispectrumLikelihoodFromAlpha": None}
+
+        if fnl_type == "unit":
+            # fnl is fixed to 1
+            info["params"] = {
+                        "fnl": {
+                            "value": 1,
+                            "latex": r"f_\mathrm{NL}"
+                        }
+                    }
+        elif fnl_type == "sampled":
+            # Directly sample fnl
+            info["params"] = {
+                        "fnl": {
+                            "prior": {
+                                "min": -100,
+                                "max": 100
+                            },
+                            "latex": r"f_\mathrm{NL}"
+                        }
+            }
+        elif fnl_type == "derived":
+            # Indirectly sample fnl, e.g. through fnl_SNR
+            info["params"] = {
+                        "fnl": {
+                            "latex": r"f_\mathrm{NL}"
+                        }
+            }
+        
+        return info
+
+
+class BispectrumDecompAlpha(Theory):
+    """ A class for basis decomposition alpha of a given cmbbest.Model instance """
+
+    def initialize(self, mode_p_max=30):
+        """called from __init__ to initialize"""
+        self.basis = best.Basis(mode_p_max=mode_p_max)
+        self.basis.precompute_pseudoinv()
+
+    def initialize_with_provider(self, provider):
+        """
+        Initialization after other components initialized, using Provider class
+        instance which is used to return any dependencies (see calculate below).
+        """
+        self.provider = provider
+
+    def get_requirements(self):
+        """
+        Return dictionary of derived parameters or other quantities that are needed
+        by this component and should be calculated by another theory class.
+        """
+        return ["cmbbest_model"]
+
+    def get_can_provide(self):
+        return ["cmbbest_alpha"]
+
+    def get_can_provide_params(self):
+        return ["decomp_conv_corr", "decomp_conv_MSE"]
+
+    def calculate(self, state, want_derived=True, **params_values_dict):
+        best_model = self.provider.get_result("cmbbest_model")
+
+        alpha, shape_cov, conv_corr, conv_MSE = self.basis.pseudoinv_basis_expansion([best_model], silent=True)
+        state["cmbbest_alpha"] = alpha.flatten()
+
+        if want_derived:
+            state["derived"] = {"decomp_conv_corr": conv_corr,
+                                "decomp_conv_MSE": conv_MSE} 
+    
+    def get_cmbbest_alpha(self):
+        return self.current_state["cmbbest_alpha"]
+
+    def get_info():
+        # Get base info for cobaya runs
+
+        info = {}
+        info["theory"] = {"cmbfeat.bispectrum.BispectrumDecompAlpha": None}
+        info["params"] = {
+                            "decomp_conv_corr": {
+                                "min": -1,
+                                "max": 1,
+                                "latex": r"R_\mathrm{conv}"
+                            },
+                            "decomp_conv_MSE": {
+                                "latex": r"\epsilon_\mathrm{conv}"
+                            }
+                        }
+        
+        return info
+
+
+class fnlSNR2fnl(Theory):
+    """ A simple helper class for sampling fnl_SNR instead of fnl """
+
+    def get_requirements(self):
+        return ["fnl_SNR", "fnl_sigma"]
+    
+    def get_can_provide_params(self):
+        return ["fnl"]
+    
+    def calculate(self, state, want_derived=True, **params_values_dict):
+        fnl_SNR = self.provider.get_param("fnl_SNR")
+        fnl_sigma = self.provider.get_param("fnl_sigma")
+        fnl = fnl_SNR * fnl_sigma
+        if want_derived:
+            state["derived"] = {"fnl": fnl}
+    
+    def get_info(sigma_bound=4):
+        # Get base info for cobaya runs
+
+        info = {}
+        info["theory"] = {"cmbfeat.bispectrum.fnlSNR2fnl": None}
+
+        # Directly sample fnl
+        info["params"] = {
+                    "fnl_SNR": {
+                        "prior": {
+                            "min": -sigma_bound,
+                            "max": sigma_bound
+                        },
+                        "latex": r"f_\mathrm{NL}/\sigma(f_\mathrm{NL})"
+                    }
+        }
+        
+        return info
 
 
 class BispectrumFromPkGSR(Theory):
@@ -168,14 +326,16 @@ class BispectrumFromPkGSR(Theory):
 
         integrand = np.exp(-logk) * (ns - 1)
 
-        term1 = (2 * np.pi) ** 4 * (Pk ** 2) * (np.sum(integrand) - np.cumsum(integrand)) * dlogk
-        term2 = (2 * np.pi) ** 4 * (Pk ** 2) * (1 - ns)
-        term3 = (2 * np.pi) ** 4 * (Pk ** 2) * alphas
+        # (3/5)**3 comes from the conversion from R to zeta
+        fact = (3/5)**3 * (2 * np.pi)**4 * (Pk ** 2)
+        term1 = fact * (np.sum(integrand) - np.cumsum(integrand)) * dlogk
+        term2 = fact * (1 - ns)
+        term3 = fact * alphas
 
         def shape_function(k1, k2, k3):
             meanK = (k1 + k2 + k3) / 2
             logmeanK = np.log(meanK)
-            deltasq = meanK * (meanK - 2*k1) * (meanK - 2*k2) * (meanK - 2*k3)
+            deltasq = meanK * (meanK - k1) * (meanK - k2) * (meanK - k3)
 
             t1 = np.interp(logmeanK, logk, term1) * deltasq
             t2 = np.interp(logmeanK, logk, term2) * (((k1**2 + k2**2 + k3**2) * (k1*k2 + k2*k3 + k3*k1) / (16 * meanK))
@@ -183,7 +343,7 @@ class BispectrumFromPkGSR(Theory):
                                                     - (k1*k2*k3) / 8)
             t3 = np.interp(logmeanK, logk, term3) * (k1*k2*k3) / 8
 
-            return (k1*k2*k3)**(-3) * (t1 + t2 + t3)
+            return (k1*k2*k3)**(-1) * (t1 + t2 + t3)
         
         cmbbest_model = best.Model("custom", shape_function=shape_function, shape_name="Bispectrum from Pk")
         
@@ -197,7 +357,7 @@ class BispectrumFromPkGSR(Theory):
         # Get base info for cobaya runs
 
         info = {}
-        info["theory"] = {"bispectrumGSR": BispectrumFromPkGSR}
+        info["theory"] = {"cmbfeat.bispectrum.BispectrumFromPkGSR": None}
         
         return info
 

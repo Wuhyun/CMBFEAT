@@ -6,7 +6,7 @@ import numpy as np
 import cmbfeat
 import cmbfeat.models
 import cmbfeat.samplers
-import cmbfeat.likelihoods
+import cmbfeat.bispectrum
 from cobaya.yaml import yaml_load_file
 from cobaya.run import run
 from cobaya.model import get_model
@@ -17,7 +17,7 @@ def test_import():
 
 
 class TestBaseLCDM():
-    info = yaml_load_file("tests/yaml/planck_lcdm_base.yaml")
+    info = yaml_load_file("yaml/lcdm_planck_base.yaml")
     info["output"] = "tests/chains/test_base_lcdm/"
     info["force"] = True
 
@@ -26,7 +26,7 @@ class TestBaseLCDM():
         info = self.info
 
         info.update(cmbfeat.samplers.base_mcmc_sampler_info())
-        info.update({"sampler": {"mcmc": {"max_samples": 2}}})
+        info["sampler"]["mcmc"].update({"max_samples": 2})
         
         model = get_model(info)
         updated_info, sampler = run(info)
@@ -53,21 +53,53 @@ class TestBaseLCDM():
         updated_info, sampler = run(info)
     '''
 
+class TestPowerSpectrum():
+
+    #info1 = yaml_load_file("yaml/lcdm_planck_base.yaml")
+    info1 = yaml_load_file("yaml/lcdm_planck_bestfit.yaml")
+    info2 = cmbfeat.models.LinOscPrimordialPk.get_info()
+
+    info = cmbfeat.models.merge_dicts([info1, info2])
+    #print("####################", info)
+
+    info["output"] = "tests/chains/test_power_spectrum/"
+    info["force"] = True
+
+    '''
+    def test_mcmc_sampling(self):
+        info = self.info
+
+        info.update(cmbfeat.samplers.base_mcmc_sampler_info())
+        info["sampler"]["mcmc"].update({"max_samples": 2})
+        #info.update({"sampler": {"mcmc": {"Rminus1_stop": 0.1}}})
+        
+        model = get_model(info)
+        updated_info, sampler = run(info)
+    '''
+
+    '''
+    def test_polychord_sampling(self):
+        # Polychord doesn't seem to work well with pytest...
+
+        info = self.info
+
+        info.update(cmbfeat.samplers.base_polychord_sampler_info())
+        info.update({"sampler": {"polychord": {"max_ndead": 2}}})
+        
+        model = get_model(info)
+        updated_info, sampler = run(info)
+    '''
+
+
 
 class TestBispectrum():
 
-    info = {} 
-    info1 = cmbfeat.likelihoods.BispectrumLikelihood.get_info()
-    info2 = cmbfeat.likelihoods.BispectrumDecomp.get_info()
+    info1 = cmbfeat.bispectrum.BispectrumLikelihood.get_info()
+    info2 = cmbfeat.bispectrum.BispectrumDecomp.get_info()
     info3 = cmbfeat.models.LinOscPrimordialB.get_info()
 
-    for key in ["theory", "likelihood", "params"]:
-        info[key] = {}
-        for sub in [info1, info2, info3]:
-            if key in sub.keys():
-                info[key] = info[key] | sub[key]
-
-    print("####################", info)
+    info = cmbfeat.models.merge_dicts([info1, info2, info3])
+    #print("####################", info)
 
     info["output"] = "tests/chains/test_bispectrum/"
     info["force"] = True
@@ -77,8 +109,45 @@ class TestBispectrum():
         info = self.info
 
         info.update(cmbfeat.samplers.base_mcmc_sampler_info())
-        #info.update({"sampler": {"mcmc": {"max_samples": 2}}})
-        info.update({"sampler": {"mcmc": {"Rminus1_stop": 0.1}}})
+        info["sampler"]["mcmc"].update({"max_samples": 2})
+        #info.update({"sampler": {"mcmc": {"Rminus1_stop": 0.1}}})
+        
+        model = get_model(info)
+        updated_info, sampler = run(info)
+    '''
+
+    '''
+    def test_polychord_sampling(self):
+        # Polychord doesn't seem to work well with pytest...
+
+        info = self.info
+
+        info.update(cmbfeat.samplers.base_polychord_sampler_info())
+        info.update({"sampler": {"polychord": {"max_ndead": 2}}})
+        
+        model = get_model(info)
+        updated_info, sampler = run(info)
+    '''
+
+class TestBispectrumAlpha():
+
+    info1 = cmbfeat.bispectrum.BispectrumLikelihoodFromAlpha.get_info()
+    info2 = cmbfeat.bispectrum.BispectrumDecompAlpha.get_info()
+    info3 = cmbfeat.models.LinOscPrimordialB.get_info()
+
+    info = cmbfeat.models.merge_dicts([info1, info2, info3])
+    #print("####################", info)
+
+    info["output"] = "tests/chains/test_bispectrum_alpha/"
+    info["force"] = True
+
+    '''
+    def test_mcmc_sampling(self):
+        info = self.info
+
+        info.update(cmbfeat.samplers.base_mcmc_sampler_info())
+        info["sampler"]["mcmc"].update({"max_samples": 2})
+        #info.update({"sampler": {"mcmc": {"Rminus1_stop": 0.1}}})
         
         model = get_model(info)
         updated_info, sampler = run(info)
@@ -98,21 +167,56 @@ class TestBispectrum():
     '''
 
 
+class TestBispectrumSNR():
+
+    info1 = cmbfeat.bispectrum.BispectrumLikelihood.get_info(fnl_type="derived")
+    info2 = cmbfeat.bispectrum.fnlSNR2fnl.get_info(sigma_bound=4.5)
+    info3 = cmbfeat.bispectrum.BispectrumDecomp.get_info()
+    info4 = cmbfeat.models.LinOscPrimordialB.get_info()
+
+    info = cmbfeat.models.merge_dicts([info1, info2, info3, info4])
+    #print("####################", info)
+
+    info["output"] = "tests/chains/test_bispectrum_SNR/"
+    info["force"] = True
+
+    '''
+    def test_mcmc_sampling(self):
+        info = self.info
+
+        info.update(cmbfeat.samplers.base_mcmc_sampler_info())
+        info["sampler"]["mcmc"].update({"max_samples": 2})
+        #info.update({"sampler": {"mcmc": {"Rminus1_stop": 0.1}}})
+        
+        model = get_model(info)
+        updated_info, sampler = run(info)
+    '''
+
+    '''
+    def test_polychord_sampling(self):
+        # Polychord doesn't seem to work well with pytest...
+
+        info = self.info
+
+        info.update(cmbfeat.samplers.base_polychord_sampler_info())
+        info.update({"sampler": {"polychord": {"max_ndead": 2}}})
+        
+        model = get_model(info)
+        updated_info, sampler = run(info)
+    '''
+
+
+
 class TestBispectrumFromPk():
 
-    info = {} 
-    info1 = cmbfeat.likelihoods.BispectrumLikelihood.get_info(unit_fnl=True)
-    info2 = cmbfeat.likelihoods.BispectrumDecomp.get_info()
-    info3 = cmbfeat.likelihoods.BispectrumFromPkGSR.get_info()
+    info1 = cmbfeat.bispectrum.BispectrumLikelihood.get_info()
+    info2 = cmbfeat.bispectrum.BispectrumDecomp.get_info()
+    info3 = cmbfeat.bispectrum.BispectrumFromPkGSR.get_info()
     info4 = cmbfeat.models.LinOscPrimordialPk.get_info()
+    #info4 = {"theory": {"cmbfeat.models.PowerLawPrimordialPk": None}}
 
-    for key in ["theory", "likelihood", "params"]:
-        info[key] = {}
-        for sub in [info1, info2, info3, info4]:
-            if key in sub.keys():
-                info[key] = info[key] | sub[key]
-
-    print("####################", info)
+    info = cmbfeat.models.merge_dicts([info1, info2, info3, info4])
+    #print("####################", info)
 
     info["params"].update({"As": {"value": 2.1e-9, "latex": r"A_\mathrm{s}"},
                            "ns": {"value": 0.9649, "latex": r"n_\mathrm{s}"}})
@@ -120,17 +224,18 @@ class TestBispectrumFromPk():
     info["output"] = "tests/chains/test_bispectrum_from_pk/"
     info["force"] = True
 
-    #'''
+    '''
     def test_mcmc_sampling(self):
         info = self.info
 
         info.update(cmbfeat.samplers.base_mcmc_sampler_info())
-        #info.update({"sampler": {"mcmc": {"max_samples": 2}}})
-        info.update({"sampler": {"mcmc": {"Rminus1_stop": 0.05}}})
+        info["sampler"]["mcmc"].update({"max_samples": 2})
+        #info.update({"sampler": {"mcmc": {"Rminus1_stop": 0.05}}})
+        info["sampler"] = {"evaluate": {"override": {"A_osc": 0.3, "omega_osc": 300}}}
         
         model = get_model(info)
         updated_info, sampler = run(info)
-    #'''
+    '''
 
     '''
     def test_polychord_sampling(self):
@@ -143,4 +248,29 @@ class TestBispectrumFromPk():
         
         model = get_model(info)
         updated_info, sampler = run(info)
+    '''
+
+class TestYAML():
+
+    #filenames = ["lcdm_planck_base.yaml", "linosc_B_cmbbest.yaml",
+    #            "lcdm_planck_bestfit.yaml",	"linosc_Pk_planck_bestfit.yaml"]
+    filenames = ["linosc_PkGSR_cmbbest.yaml", "linosc_Pk_planck_bestfit.yaml", "linosc_PkGSR_joint.yaml",
+                "linenvosc_PkGSR_cmbbest.yaml", "linenvosc_Pk_planck_bestfit.yaml", "linenvosc_PkGSR_joint.yaml"]
+    #filenames = ["linosc_B_cmbbest.yaml"]
+                
+
+    #'''
+    def test_load_yaml(self):
+        print("##########!!")
+        for filename in self.filenames:
+            info = yaml_load_file("yaml/" + filename)
+            print("##########", info)
+            model = get_model(info)
+    #'''
+    '''
+    def test_run_yaml(self):
+        for filename in self.filenames:
+            info = yaml_load_file("yaml/" + filename)
+            info["sampler"]["mcmc"].update({"max_samples": 2})
+            updated_info, sampler = run(info)
     '''

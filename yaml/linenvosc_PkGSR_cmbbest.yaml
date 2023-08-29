@@ -1,0 +1,59 @@
+likelihood:
+  cmbfeat.bispectrum.BispectrumLikelihood:
+theory:
+  cmbfeat.bispectrum.BispectrumDecomp:
+  cmbfeat.bispectrum.BispectrumFromPkGSR:
+  cmbfeat.models.LinEnvOscPrimordialPk:
+params:
+  A_osc:
+    prior:
+      min: -0.3
+      max: 0.3
+    latex: A_\mathrm{osc}
+  sigma_osc:
+    prior:
+      min: 10
+      max: 200
+    latex: \sigma_\mathrm{osc}
+    drop: True
+  B_osc:
+    derived: 'lambda sigma_osc, kp_osc: (sigma_osc*kp_osc)**(-2)'
+    prior:
+      min: -0.3
+      max: 0.3
+    latex: B_\mathrm{osc}
+  omega_osc:
+    prior:
+      min: 10
+      max: 300
+    latex: \omega_\mathrm{osc}
+  kp_osc:
+    prior:
+      min: 0.001
+      max: 0.15
+    latex: k_{*,\mathrm{osc}}
+  fnl:
+    value: 1
+    latex: f_\mathrm{NL}
+  fnl_MLE:
+    latex: \widehat{f_\mathrm{NL}}
+  fnl_sigma:
+    min: 0
+    latex: \sigma(f_\mathrm{NL})
+  fnl_sample_sigma:
+    min: 0
+    latex: \widehat{\sigma(f_\mathrm{NL})}
+  decomp_conv_corr:
+    min: -1
+    max: 1
+    latex: R_\mathrm{conv}
+  decomp_conv_MSE:
+    min: 0
+    latex: \epsilon_\mathrm{conv}
+sampler:
+  mcmc:
+    drag: true
+    oversample_power: 0.4
+    covmat: auto
+    Rminus1_stop: 0.01
+    Rminus1_cl_stop: 0.2 

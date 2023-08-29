@@ -7,7 +7,49 @@ BASE_DELTA_PHI = (2 * (np.pi ** 2) * ((3 / 5) ** 2)
                     * best.BASE_A_S)
 BASE_NORMALISATION = 6 * BASE_DELTA_PHI ** 2
 
-PK_GRID_SIZE = 5000
+PK_GRID_SIZE = 10000
+
+def recursive_merge(a, b, path=[]):
+    # Recursively merge two dictionaries. Modifies 'a'
+    for key in b:
+        if key in a:
+            if isinstance(a[key], dict) and isinstance(b[key], dict):
+                recursive_merge(a[key], b[key], path + [str(key)])
+            elif a[key] != b[key]:
+                raise Exception('Dictionary merge conflict at path' + '.'.join(path + [str(key)]))
+        else:
+            a[key] = b[key]
+    return a
+
+def merge_dicts(info_list):
+    # Utility function for joining multiple Cobaya InfoDicts
+    merged = {}
+    for info in info_list:
+        merged = recursive_merge(merged, info)
+
+    return merged
+
+
+class PowerLawPrimordialPk(Theory):
+    # LCDM PPS following a power law
+
+    def initialize(self):
+        # need to provide valid results at wide k range, any that might be used
+        self.ks = np.logspace(-5.5, 2, PK_GRID_SIZE)
+
+    def calculate(self, state, want_derived=True, **params_values_dict):
+        pivot_scalar = 0.05
+        As, ns = [params_values_dict[key] for key in ["As", "ns"]]
+
+        pk = (self.ks / pivot_scalar) ** (ns - 1) * As
+        state['primordial_scalar_pk'] = {'kmin': self.ks[0], 'kmax': self.ks[-1], 'Pk': pk, 'log_regular': True}
+
+    def get_primordial_scalar_pk(self):
+        return self.current_state['primordial_scalar_pk']
+
+    def get_can_support_params(self):
+        return ["As", "ns"]
+
 
 class LinEnvOscPrimordialPk(Theory):
     # PPS with linear oscillations with an envelope
@@ -61,7 +103,7 @@ class LinOscPrimordialPk(Theory):
     def get_info(omega_min=10, omega_max=300):
         # Get base info for cobaya runs
         info = {}
-        info["theory"] = {"my_pk": LinOscPrimordialPk}
+        info["theory"] = {"cmbfeat.models.LinOscPrimordialPk": None}
         info["params"] = {
                 "A_osc": {
                     "prior": {
@@ -91,8 +133,6 @@ class LinOscPrimordialPk(Theory):
 
 class LinOscPrimordialB(Theory):
 
-    params = {"omega_osc": None, "phi_osc": None}
-
     def initialize(self):
         pass
 
@@ -110,7 +150,7 @@ class LinOscPrimordialB(Theory):
         phi_osc = self.provider.get_param("phi_osc")
 
         model = best.Model("custom", shape_function=lambda k1, k2, k3: BASE_NORMALISATION * np.sin(omega_osc*(k1+k2+k3) + phi_osc))
-        state["derived"].update({"cmbbest_model": model})
+        state["cmbbest_model"] = model
 
     def get_cmbbest_model(self):
         return self.current_state["cmbbest_model"]
@@ -118,7 +158,7 @@ class LinOscPrimordialB(Theory):
     def get_info(omega_min=10, omega_max=300):
         # Get base info for cobaya runs
         info = {}
-        info["theory"] = {"my_b": LinOscPrimordialB}
+        info["theory"] = {"cmbfeat.models.LinOscPrimordialB": None}
         info["params"] = {
                 "omega_osc": {
                     "prior": {
