@@ -43,7 +43,8 @@ params:
   decomp_conv_MSE:
     min: 0
     latex: \epsilon_\mathrm{conv}
-  As: value: 2.100e-9
+  As:
+    value: 2.100e-9
     latex: A_\mathrm{s}
   ns:
     value: 0.9649

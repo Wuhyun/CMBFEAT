@@ -60,8 +60,10 @@ class LinEnvOscPrimordialPk(Theory):
 
     def calculate(self, state, want_derived=True, **params_values_dict):
         pivot_scalar = 0.05
-        As, ns, A_osc, B_osc, omega_osc, kp_osc = [params_values_dict[key]
-                        for key in ["As", "ns", "A_osc", "B_osc", "omega_osc", "kp_osc"]]
+        As, ns, A_osc, sigma_osc, omega_osc, kp_osc = [params_values_dict[key]
+                        for key in ["As", "ns", "A_osc", "sigma_osc", "omega_osc", "kp_osc"]]
+
+        B_osc = 1 / (sigma_osc * kp_osc) ** 2
 
         base_pk = (self.ks / pivot_scalar) ** (ns - 1) * As
         osc_pk = A_osc * np.cos(omega_osc * (self.ks - kp_osc)) * np.exp(-(B_osc * ((self.ks - kp_osc) ** 2) / 2))
@@ -73,7 +75,7 @@ class LinEnvOscPrimordialPk(Theory):
         return self.current_state['primordial_scalar_pk']
 
     def get_can_support_params(self):
-        return ["As", "ns", "A_osc", "B_osc", "omega_osc", "kp_osc"]
+        return ["As", "ns", "A_osc", "sigma_osc", "omega_osc", "kp_osc"]
 
 
 class LinOscPrimordialPk(Theory):

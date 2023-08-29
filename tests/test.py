@@ -259,18 +259,19 @@ class TestYAML():
     #filenames = ["linosc_B_cmbbest.yaml"]
                 
 
-    #'''
+    '''
     def test_load_yaml(self):
         print("##########!!")
         for filename in self.filenames:
             info = yaml_load_file("yaml/" + filename)
             print("##########", info)
             model = get_model(info)
-    #'''
     '''
+    #'''
     def test_run_yaml(self):
         for filename in self.filenames:
             info = yaml_load_file("yaml/" + filename)
-            info["sampler"]["mcmc"].update({"max_samples": 2})
+            #info["sampler"]["mcmc"].update({"max_samples": 2})
+            info["sampler"] = {"evaluate": None}
             updated_info, sampler = run(info)
-    '''
+    #'''

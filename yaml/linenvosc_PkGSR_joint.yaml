@@ -20,13 +20,6 @@ params:
       min: 10
       max: 200
     latex: \sigma_\mathrm{osc}
-    drop: True
-  B_osc:
-    derived: 'lambda sigma_osc, kp_osc: (sigma_osc*kp_osc)**(-2)'
-    prior:
-      min: -0.3
-      max: 0.3
-    latex: B_\mathrm{osc}
   omega_osc:
     prior:
       min: 10
@@ -55,7 +48,8 @@ params:
   decomp_conv_MSE:
     min: 0
     latex: \epsilon_\mathrm{conv}
-  As: value: 2.100e-9
+  As:
+    value: 2.100e-9
     latex: A_\mathrm{s}
   ns:
     value: 0.9649

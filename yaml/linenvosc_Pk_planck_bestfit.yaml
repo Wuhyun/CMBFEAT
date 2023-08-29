@@ -16,14 +16,7 @@ params:
     prior:
       min: 10
       max: 200
-    drop: True
     latex: \sigma_\mathrm{osc}
-  B_osc:
-    derived: 'lambda sigma_osc, kp_osc: (sigma_osc*kp_osc)**(-2)'
-    prior:
-      min: -0.3
-      max: 0.3
-    latex: B_\mathrm{osc}
   omega_osc:
     prior:
       min: 10
