@@ -317,7 +317,7 @@ class BispectrumFromPkGSR(Theory):
 
         Pk = prim_pk["Pk"]
         logPk = np.log(Pk)
-        kvec = np.logspace(prim_pk["kmin"], prim_pk["kmax"], len(Pk))
+        kvec = np.geomspace(prim_pk["kmin"], prim_pk["kmax"], len(Pk))
         logk = np.log(kvec)
         dlogk = logk[1] - logk[0]   # Equally spaced 
 

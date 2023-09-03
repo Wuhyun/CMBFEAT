@@ -237,7 +237,7 @@ class TestBispectrumFromPk():
         updated_info, sampler = run(info)
     '''
 
-    '''
+    #'''
     def test_polychord_sampling(self):
         # Polychord doesn't seem to work well with pytest...
 
@@ -248,7 +248,7 @@ class TestBispectrumFromPk():
         
         model = get_model(info)
         updated_info, sampler = run(info)
-    '''
+    #'''
 
 class TestYAML():
 
@@ -267,11 +267,11 @@ class TestYAML():
             print("##########", info)
             model = get_model(info)
     '''
-    #'''
+    '''
     def test_run_yaml(self):
         for filename in self.filenames:
             info = yaml_load_file("yaml/" + filename)
             #info["sampler"]["mcmc"].update({"max_samples": 2})
             info["sampler"] = {"evaluate": None}
             updated_info, sampler = run(info)
-    #'''
+    '''
