@@ -57,18 +57,22 @@ class LinEnvOscPrimordialPk(Theory):
     def initialize(self):
         # need to provide valid results at wide k range, any that might be used
         self.ks = np.logspace(-5.5, 2, PK_GRID_SIZE)
+    
+    def Pk(k_grid, As, ns, A_osc, sigma_osc, omega_osc, kp_osc, pivot_scalar=0.05):
+        # Compute the template Pk at given k grid
+        
+        B_osc = 1 / (sigma_osc * kp_osc) ** 2
+        base_pk = (k_grid / pivot_scalar) ** (ns - 1) * As
+        osc_pk = A_osc * np.cos(omega_osc * (k_grid - kp_osc)) * np.exp(-(B_osc * ((k_grid - kp_osc) ** 2) / 2))
+        pk = base_pk * (1 + osc_pk)
+
+        return pk
 
     def calculate(self, state, want_derived=True, **params_values_dict):
         pivot_scalar = 0.05
-        As, ns, A_osc, sigma_osc, omega_osc, kp_osc = [params_values_dict[key]
-                        for key in ["As", "ns", "A_osc", "sigma_osc", "omega_osc", "kp_osc"]]
-
-        B_osc = 1 / (sigma_osc * kp_osc) ** 2
-
-        base_pk = (self.ks / pivot_scalar) ** (ns - 1) * As
-        osc_pk = A_osc * np.cos(omega_osc * (self.ks - kp_osc)) * np.exp(-(B_osc * ((self.ks - kp_osc) ** 2) / 2))
-        pk = base_pk * (1 + osc_pk)
-
+        kwargs = {key: params_values_dict[key]
+                        for key in ["As", "ns", "A_osc", "sigma_osc", "omega_osc", "kp_osc"]}
+        pk = LinEnvOscPrimordialPk.Pk(self.ks, **kwargs)
         state['primordial_scalar_pk'] = {'kmin': self.ks[0], 'kmax': self.ks[-1], 'Pk': pk, 'log_regular': True}
 
     def get_primordial_scalar_pk(self):

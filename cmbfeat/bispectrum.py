@@ -309,16 +309,15 @@ class BispectrumFromPkGSR(Theory):
     def get_can_provide(self):
         return ["cmbbest_model"]
 
-    def calculate(self, state, want_derived=True, **params_values_dict):
-        # Compute the bispectrum corresponding to P(k) under GSR
+    
+    def shape_function_from_Pk(k_grid, primordial_pk):
+        # Static function for computing the bispectrum shape function
+        # that corresponds to a given P(k) under GSR
+        # ASSUMES that k_grid is uniformly spaced in log space
 
-        prim_pk = self.provider.get_result("primordial_scalar_pk")
-        assert(prim_pk["log_regular"])  # Currently only implemented for log-spaced grids
-
-        Pk = prim_pk["Pk"]
+        Pk = primordial_pk
         logPk = np.log(Pk)
-        kvec = np.geomspace(prim_pk["kmin"], prim_pk["kmax"], len(Pk))
-        logk = np.log(kvec)
+        logk = np.log(k_grid)
         dlogk = logk[1] - logk[0]   # Equally spaced 
 
         ns = 1 + np.gradient(logPk) / dlogk 
@@ -345,12 +344,26 @@ class BispectrumFromPkGSR(Theory):
 
             return (k1*k2*k3)**(-1) * (t1 + t2 + t3)
         
+        return shape_function
+
+
+    def calculate(self, state, want_derived=True, **params_values_dict):
+        # Compute the bispectrum corresponding to P(k) under GSR
+
+        prim_pk = self.provider.get_result("primordial_scalar_pk")
+        assert(prim_pk["log_regular"])  # Currently only implemented for log-spaced grids
+
+        Pk = prim_pk["Pk"]
+        kvec = np.geomspace(prim_pk["kmin"], prim_pk["kmax"], len(Pk))
+
+        shape_function = BispectrumFromPkGSR.shape_function_from_Pk(kvec, Pk)
         cmbbest_model = best.Model("custom", shape_function=shape_function, shape_name="Bispectrum from Pk")
         
         state["cmbbest_model"] = cmbbest_model
 
-        def get_cmbbest_model(self):
-            return self.current_state["cmbbest_model"]
+
+    def get_cmbbest_model(self):
+        return self.current_state["cmbbest_model"]
 
 
     def get_info():

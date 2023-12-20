@@ -3,3 +3,4 @@ cmbfeat/__pycache__/*
 tests/__pycache__/*
 tests/chains/*
 tests/yaml/*
+.DS_Store
