@@ -37,11 +37,16 @@ class PowerLawPrimordialPk(Theory):
         # need to provide valid results at wide k range, any that might be used
         self.ks = np.logspace(-5.5, 2, PK_GRID_SIZE)
 
+    def Pk(k_grid, As, ns, pivot_scalar=0.05):
+        # Compute the template Pk at given k grid
+        pk = (k_grid / pivot_scalar) ** (ns - 1) * As
+        return pk
+
     def calculate(self, state, want_derived=True, **params_values_dict):
         pivot_scalar = 0.05
         As, ns = [params_values_dict[key] for key in ["As", "ns"]]
 
-        pk = (self.ks / pivot_scalar) ** (ns - 1) * As
+        pk = PowerLawPrimordialPk.Pk(self.ks, As=As, ns=ns)
         state['primordial_scalar_pk'] = {'kmin': self.ks[0], 'kmax': self.ks[-1], 'Pk': pk, 'log_regular': True}
 
     def get_primordial_scalar_pk(self):
@@ -60,16 +65,13 @@ class LinEnvOscPrimordialPk(Theory):
     
     def Pk(k_grid, As, ns, A_osc, sigma_osc, omega_osc, kp_osc, pivot_scalar=0.05):
         # Compute the template Pk at given k grid
-        
         B_osc = 1 / (sigma_osc * kp_osc) ** 2
         base_pk = (k_grid / pivot_scalar) ** (ns - 1) * As
         osc_pk = A_osc * np.cos(omega_osc * (k_grid - kp_osc)) * np.exp(-(B_osc * ((k_grid - kp_osc) ** 2) / 2))
         pk = base_pk * (1 + osc_pk)
-
         return pk
 
     def calculate(self, state, want_derived=True, **params_values_dict):
-        pivot_scalar = 0.05
         kwargs = {key: params_values_dict[key]
                         for key in ["As", "ns", "A_osc", "sigma_osc", "omega_osc", "kp_osc"]}
         pk = LinEnvOscPrimordialPk.Pk(self.ks, **kwargs)
@@ -88,15 +90,18 @@ class LinOscPrimordialPk(Theory):
         # need to provide valid results at wide k range, any that might be used
         self.ks = np.logspace(-5.5, 2, PK_GRID_SIZE)
 
+    def Pk(k_grid, As, ns, A_osc, omega_osc, phi_osc, pivot_scalar=0.05):
+        # Compute the template Pk at given k grid
+        base_pk = (k_grid / pivot_scalar) ** (ns - 1) * As
+        osc_pk = A_osc * np.sin(omega_osc * k_grid + phi_osc)
+        pk = base_pk * (1 + osc_pk)
+        return pk
+
     def calculate(self, state, want_derived=True, **params_values_dict):
         pivot_scalar = 0.05
-        As, ns, A_osc, omega_osc, phi_osc = [params_values_dict[key]
-                        for key in ["As", "ns", "A_osc", "omega_osc", "phi_osc"]]
-
-        base_pk = (self.ks / pivot_scalar) ** (ns - 1) * As
-        osc_pk = A_osc * np.sin(omega_osc * self.ks + phi_osc)
-        pk = base_pk * (1 + osc_pk)
-
+        kwargs = {key: params_values_dict[key]
+                        for key in ["As", "ns", "A_osc", "omega_osc", "phi_osc"]}
+        pk = LinOscPrimordialPk.Pk(self.ks, **kwargs)
         state['primordial_scalar_pk'] = {'kmin': self.ks[0], 'kmax': self.ks[-1], 'Pk': pk, 'log_regular': True}
 
     def get_primordial_scalar_pk(self):
@@ -150,12 +155,18 @@ class LinOscPrimordialB(Theory):
     
     def get_can_provide(self):
         return ["cmbbest_model"]
+    
+    def shape_function_from_params(omega_osc, phi_osc):
+        def shape_function(k1, k2, k3):
+            return BASE_NORMALISATION * np.sin(omega_osc*(k1+k2+k3) + phi_osc)
+        return shape_function
 
     def calculate(self, state, want_derived=True, **params_values_dict):
         omega_osc = self.provider.get_param("omega_osc")
         phi_osc = self.provider.get_param("phi_osc")
+        shape_function = LinOscPrimordialB.shape_function_from_params(omega_osc, phi_osc)
 
-        model = best.Model("custom", shape_function=lambda k1, k2, k3: BASE_NORMALISATION * np.sin(omega_osc*(k1+k2+k3) + phi_osc))
+        model = best.Model("custom", shape_function=shape_function)
         state["cmbbest_model"] = model
 
     def get_cmbbest_model(self):
