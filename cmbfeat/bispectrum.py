@@ -310,7 +310,7 @@ class BispectrumFromPkGSR(Theory):
         return ["cmbbest_model"]
 
     
-    def shape_function_from_Pk(k_grid, primordial_pk):
+    def shape_function_from_Pk(k_grid, primordial_pk, k_pivot=0.05, As_base=None, ns_base=None):
         # Static function for computing the bispectrum shape function
         # that corresponds to a given P(k) under GSR
         # ASSUMES that k_grid is uniformly spaced in log space
@@ -323,10 +323,23 @@ class BispectrumFromPkGSR(Theory):
         ns = 1 + np.gradient(logPk) / dlogk 
         alphas = np.gradient(ns) / dlogk
 
+        # Parameters for the featureless PPS
+        if As_base and ns_base:
+            As_0, ns_0 = As_base, ns_base
+
+        else:
+            # Simple linear regression to fit As and ns for the featureless PPS
+            # logP_featless = logAs_0 + (ns_0-1) log(k/k_pivot)
+            ns_0 = 1 + np.dot((logPk - np.mean(logPk)), (logk - np.mean(logk))) / np.sum((logk - np.mean(logk)) ** 2)
+            As_0 = np.exp(np.mean(logPk) - (ns_0 - 1) * (np.mean(logk) - np.log(k_pivot)))
+            print(f"Featureless PPS parameters estimated through linear regression: ns_0={ns_0}, As_0={As_0}")
+
+        Pk_0 = As_0 * ((k_grid / k_pivot) ** (ns_0 - 1))
+
         integrand = np.exp(-logk) * (ns - 1)
 
         # (3/5)**3 comes from the conversion from R to zeta
-        fact = (3/5)**3 * (2 * np.pi)**4 * (Pk ** 2)
+        fact = (3/5)**3 * (2 * np.pi)**4 * (Pk_0 ** 2)
         term1 = fact * (np.sum(integrand) - np.cumsum(integrand)) * dlogk
         term2 = fact * (1 - ns)
         term3 = fact * alphas
